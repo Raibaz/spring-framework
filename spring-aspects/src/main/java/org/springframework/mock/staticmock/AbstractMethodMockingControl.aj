@@ -84,8 +84,15 @@ public abstract aspect AbstractMethodMockingControl percflow(mockStaticsTestMeth
 				if (!signature.equals(lastSig)) {
 					throw new IllegalArgumentException("Signature doesn't match");
 				}
-				if (!Arrays.equals(this.args, args)) {
+				if(this.args.length != args.length) {
 					throw new IllegalArgumentException("Arguments don't match");
+				}				
+				for(int i = 0; i < this.args.length; i++) {					
+					if(!(this.args[i] instanceof AnyMarker) && 
+						(!this.args[i].equals(args[i])) &&
+						(this.args[i] == null && args[i] != null)){
+						throw new IllegalArgumentException("Arguments don't match");
+					}
 				}
 			}
 		}
