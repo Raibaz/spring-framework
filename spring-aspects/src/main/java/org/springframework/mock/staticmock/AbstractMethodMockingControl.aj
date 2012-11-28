@@ -37,7 +37,7 @@ public abstract aspect AbstractMethodMockingControl percflow(mockStaticsTestMeth
 
 	private boolean recording = true;
 
-	static enum CallResponse { nothing, return_, throw_ };
+	static enum CallResponse { nothing, return_, returnAlways, throw_ };
 
 	// Represents a list of expected calls to static entity methods
 	// Public to allow inserted code to access: is this normal??
@@ -60,6 +60,11 @@ public abstract aspect AbstractMethodMockingControl percflow(mockStaticsTestMeth
 				return responseType != CallResponse.nothing;
 			}
 			
+			public void setReturnValAlways(Object retVal) {
+				this.responseObject = retVal;
+				responseType = CallResponse.returnAlways;
+			}
+			
 			public void setReturnVal(Object retVal) {
 				this.responseObject = retVal;
 				responseType = CallResponse.return_;
@@ -74,7 +79,7 @@ public abstract aspect AbstractMethodMockingControl percflow(mockStaticsTestMeth
 				checkSignature(lastSig, args);
 				return responseObject;
 			}
-
+						
 			public Object throwException(String lastSig, Object[] args) {
 				checkSignature(lastSig, args);
 				throw (RuntimeException)responseObject;
@@ -87,12 +92,8 @@ public abstract aspect AbstractMethodMockingControl percflow(mockStaticsTestMeth
 				if(this.args.length != args.length) {
 					throw new IllegalArgumentException("Arguments don't match");
 				}				
-				for(int i = 0; i < this.args.length; i++) {					
-					if(!(this.args[i] instanceof AnyMarker) && 
-						(!this.args[i].equals(args[i])) &&
-						(this.args[i] == null && args[i] != null)){
-						throw new IllegalArgumentException("Arguments don't match");
-					}
+				if (!Arrays.equals(this.args, args)) {
+					throw new IllegalArgumentException("Arguments don't match");
 				}
 			}
 		}
@@ -118,7 +119,9 @@ public abstract aspect AbstractMethodMockingControl percflow(mockStaticsTestMeth
 		public Object respond(String lastSig, Object[] args) {
 			Call call = nextCall();
 			CallResponse responseType = call.responseType;
-			if (responseType == CallResponse.return_) {
+			if(responseType == CallResponse.returnAlways) {
+				return call.responseObject;
+			} else if (responseType == CallResponse.return_) {
 				return call.returnValue(lastSig, args);
 			} else if(responseType == CallResponse.throw_) {
 				return (RuntimeException)call.throwException(lastSig, args);
@@ -145,6 +148,14 @@ public abstract aspect AbstractMethodMockingControl percflow(mockStaticsTestMeth
 			return !calls.isEmpty();
 		}
 
+		public void expectReturnAlways(Object retVal) {
+			Call call = calls.get(calls.size() - 1);
+			if (call.hasResponseSpecified()) {
+				throw new IllegalStateException("No static method invoked before setting return value");
+			}
+			call.setReturnValAlways(retVal);
+		}
+		
 		public void expectReturn(Object retVal) {
 			Call call = calls.get(calls.size() - 1);
 			if (call.hasResponseSpecified()) {
@@ -181,6 +192,13 @@ public abstract aspect AbstractMethodMockingControl percflow(mockStaticsTestMeth
 		} else {
 			return expectations.respond(thisJoinPointStaticPart.toLongString(), thisJoinPoint.getArgs());
 		}
+	}
+	
+	public void expectReturnAlwaysInternal(Object retVal) {
+		if(!recording) {
+			throw new IllegalStateException("Not recording: Cannot set return value");
+		}
+		expectations.expectReturn(retVal);
 	}
 	
 	public void expectReturnInternal(Object retVal) {

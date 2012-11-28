@@ -58,6 +58,10 @@ public aspect AnnotationDrivenStaticEntityMockingControl extends AbstractMethodM
 	public static void expectThrow(Throwable throwable) {
 		AnnotationDrivenStaticEntityMockingControl.aspectOf().expectThrowInternal(throwable);
 	}
+	
+	public static void expectReturnAlways(Object retVal) {
+		AnnotationDrivenStaticEntityMockingControl.aspectOf().expectReturnAlwaysInternal(retVal);
+	}
 
 	// Only matches directly annotated @Test methods, to allow methods in
 	// @MockStatics classes to invoke each other without resetting the mocking environment
